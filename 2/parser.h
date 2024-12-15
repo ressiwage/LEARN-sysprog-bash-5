@@ -45,14 +45,14 @@ enum output_type {
 	OUTPUT_TYPE_FILE_APPEND,
 };
 
-struct command_line {
+typedef struct command_line {
 	struct expr *head;
 	struct expr *tail;
 	enum output_type out_type;
 	/** Valid if the out type is FILE. */
 	char *out_file;
 	bool is_background;
-};
+} command_line;
 
 void
 command_line_delete(struct command_line *line);

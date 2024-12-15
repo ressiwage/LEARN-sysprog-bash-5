@@ -14,7 +14,7 @@ bonus_prefix_all = 'bonus all'
 points = 15
 
 parser = argparse.ArgumentParser(description='Tests for shell')
-parser.add_argument('-e', type=str, default='./a.out',
+parser.add_argument('-e', type=str, default='./mybash',
                     help='executable shell file')
 parser.add_argument('--with_logic', type=bool, default=False,
                     help='Enable boolean logic bonus')

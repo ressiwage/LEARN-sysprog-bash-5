@@ -1,0 +1,1 @@
+/bin/python3 /home/ressiwage/projects/sysprog2/2/checker.py --verbose true
