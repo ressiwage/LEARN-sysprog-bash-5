@@ -33,45 +33,55 @@ static void execute_command_line(const struct command_line *line)
 
 	int std_descs[2];
 	pipe(std_descs);
-	dup2(std_descs[0], 0);
-	
-	if (line->out_type==1){
-		int filedesc = open(line->out_file,"a");
-		dup2(std_descs[1],filedesc);
-	}else{
-		dup2(std_descs[1],1);
-	}
-
+	int out_descriptor = line->out_type==1?open(line->out_file, O_APPEND | O_CREAT | O_RDWR):stdout;
+	std_descs[1]=out_descriptor;
+	printf("out_file %s\n", line->out_file);
+	write(out_descriptor, "test\n", 5);
+	dup2(out_descriptor, stdout);
+	// dprintf(std_descs[1], "%d ", line->out_type);
+	printf("%s", line->out_file);
+	dprintf(stdout, "%s", line->out_file);
+	close(out_descriptor);
 	buffer buf;
 	buf.last_read_desc = std_descs[0];
 	buf.last_write_desc = std_descs[1];
 	buf.last_operand = EXPR_TYPE_COMMAND;
-
+	return;
 	while (e != NULL)
 	{
 		if (e->type == EXPR_TYPE_COMMAND)
 		{
+			char buf[1024] = "DBG command\n";
+			write(std_descs[1], buf, strlen(buf)+1);
+			
 			char *arguments[e->cmd.arg_count];
 			int i = 0;
 			for (char *arg = e->cmd.args[i++]; i < (int)e->cmd.arg_count; arg = e->cmd.args[i++])
 			{
-				// printf("%c", arg[0]);
 				arguments[i++] = arg;
 			}
-			// int p_descs[2];
-			// pipe(p_descs);
+
 			
 			// надо чтобы печатать мог только один поток
 			if (fork() == 0)
 			{
 				// buf.last_read_desc = &p_descs[0];
 				// buf.last_write_desc = &p_descs[1];
-				printf("DBG %s\n", e->cmd.exe);
-
-				execvp(e->cmd.exe, arguments);
-
-				return 0;
+				
+				// close(std_descs[0]);
+				
+				dup2(std_descs[1], stdout);
+				close(std_descs[0]);
+				sprintf(buf, "DBG %s\n", e->cmd.exe);
+				
+				printf("%d", write(std_descs[1], buf, strlen(buf)+1));
+				close(std_descs[1]);
+				printf("std %s", buf);
+				
+				return execvp(e->cmd.exe, arguments);
 			}
+			close(std_descs[0]);
+			// wait(NULL);
 			
 		}
 		else if (e->type == EXPR_TYPE_PIPE)
