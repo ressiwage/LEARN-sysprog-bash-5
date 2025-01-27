@@ -1,44 +1,164 @@
-Practical examples and homeworks for "System Programming" course of lectures.
+# клон bash на си
 
-The course: https://slides.com/gerold103/decks/sysprog and https://slides.com/gerold103/decks/sysprog_eng
+### что это за проект?
+это домашнее задание №2 по курсу "системное программирование". это самостоятельно написанная оболочка bash, вернее её клон.
 
-## Running the tests
+### как запустить?
+gcc -Wall -Wextra 2/solution.c 2/parser.h 2/parser.c -o bash && ./bash
 
-### Manual
+### known issues
+программа компилируется каждый второй раз, с этим пока что не разобрался.
 
-The folders with numbers as names contain the homeworks with tests (where they could be written). The students are welcome to build and run the tests manually - they should work in any non-Windows system. Alternatively they can be run in Docker. It is recommended to use the latest ubuntu Docker image for that.
+### полная версия задания
+Нужно написать упрощенную версию командной строки. Она должна
+принимать на вход строки вида:
 
-In order to check more than just the functional correctness it is encouraged to also check for the memory leaks using `utils/heap_help/`.
+    > command_name param1 param2 ...
 
-### Local auto-tests
+и выполнять их при помощи вызова команды command_name с
+параметрами. То есть работать как терминал.
 
-In order to run the tests the same as a remote automatic system would do (like VK All Cups) the participants can use the following commands right in their `sysprog/` folder.
-```Bash
-# Build the docker image used for running the tests in a stable isolated Linux
-# environment.
-docker build . -t allcups -f allcups/DockAllcups.dockerfile
 
-# Run tests for the second homework. One can replace N in `HW=N` with any other
-# homework number.
-docker run  -v ./:/tmp/data --env IS_LOCAL=1 --env HW=2 allcups
-```
+Правила:
 
-The argument `HW=N` allows to specify which homework needs to be tested. The `N` must match the directory name where the solution is located. The solutions are expected to be implemented in a fork of this repository, in the same folders where the tasks and their templates are stored.
+- Нужно, чтобы программа правильно обрабатывала строки,
+  заключенные в кавычки, как одну большую строку, даже если там
+  есть пробелы.
 
-### Remote auto-tests
+- Комментарии тоже должны обрабатываться верно, то есть
+  обрезаться.
 
-However the above commands are slightly different from what the remote automatic system would run. It would rather execute the following lines, right in the `sysprog/` folder as well.
-```Bash
-# Specify the number of the homework.
-echo "{\"hw\": 3}" > allcups/settings.json
+- Кроме того, должен поддерживаться конвейер, или иначе говоря
+  pipe, который делается символом |, а так же перенаправление
+  вывода в файл (>, >>).
 
-# The file will contain the score.
-touch allcups/output.json
+- На выход программа должна печатать все то же, что и обычный
+  терминал. Как /bin/bash.
 
-# The solution needs to be archived as a zip file.
-docker run -v ./:/tmp/data -v ./solutions/3.zip:/opt/client/input -v ./allcups/output.json:/opt/results/output.json allcups
-```
+- Необходимо использовать функции pipe(), dup/dup2(), fork(),
+  wait(), open(), close(), как минимум одну из функций семейства exec:
+  execl, execle, execlp, execv, execvp, execvP().
 
-The remote system uses the vanilla unchanged `sysprog/` repository to get the original tests and `Makefile`s. Then it takes your solution as an archive (can be created using `cd your_solution; zip -r ../solution.zip ./*`), builds it using the original sysprog/ Makefile from the corresponding homework, and then runs it against the original tests. The homework number is determined from the `settings.json` in the first command above. The result is saved into `output.json` and is printed to the console.
+- Команду 'cd' нужно реализовать самому, а не просто вызвать ее
+  через exec. Потому что она меняет текущую директорию самого
+  терминала. К счастью, это легко делается C функцией chdir().
 
-It is highly recommended not to change your local test files and Makefiles at all. Otherwise your solution testing is going to diverge from it is running in the auto-tests system.
+- Команда 'exit' тоже специальная как 'cd'. Потому что влияет на
+  сам терминал. Ее нужно реализовать вручную. Но учтите, что она
+  затрагивает терминал только если exit - единственная команда в
+  строке. 'exit' - завершить терминал. 'exit | echo 100' - не
+  завершать терминал, выполнить этот exit как любую другую команду
+  через exec-функции.
+
+- Терминал должен поддерживать токены написаные без пробелов
+  (если /bin/bash тоже может). Например:
+  'echo "4">file' (работает как 'echo "4" > file'), или
+  'echo 100|grep 100' (работает как 'echo 100 | grep 100').
+
+- Когда неясно, как что-то должно работать, стоит проверить это в
+  настоящем терминале типа /bin/bash. И затем повторить это
+  поведение.
+
+- Код должен собираться успешно с данными флагами компилятора:
+  `-Wextra -Werror -Wall -Wno-gnu-folding-constant`.
+
+
+Ограничения:
+
+- Глобальные переменные запрещены (кроме уже существующих).
+
+- Утечки памяти запрещены. Для их поиска можно использовать
+  модуль utils/heap_help. Показать репорты с нулем утечек от
+  Valgrind или ASAN не достаточно - они часто пропускают утечки.
+
+- Длина входной строки не ограничена, сохранять ее в буфер заранее
+  предаллоцированного размера нельзя. Но в оперативную память
+  каждая строка очевидно помещается.
+
+- Запрещается использовать функции вроде system(), popen(), или
+  еще каким-то образом пытаться обращаться к терминалу или
+  автоматическому созданию конвейеров.
+
+
+Послабления:
+
+- Не нужно поддерживать перенаправление потоков по номерам/именам,
+  типа stderr. Эти команды - 1>, 2>, $>, 1>> - и подобные
+  поддерживать не обязательно. (Обычные > и >> все еще надо.)
+
+- Не нужна поддержка множественного перенаправление типа
+  'cmd > file1 > file2' или 'cmd > file1 file2'.
+
+- Не нужно поддерживать '~' и '-' в реализации команды 'cd'.
+
+- Можно использовать уже написанный парсер из parser.h и .c, с примером
+  использования в solution.c.
+
+
+Примеры ввода:
+
+* Распечатать список процессов и найти среди них строку init.
+
+    > ps aux | grep init
+
+* Выполнить код в python и выполнить поиск по его результату:
+
+    > echo "print('result is ', 123 + 456); exit()" | python3 -i | grep result
+
+* Печать экранированной кавычки в файл и его вывод:
+
+    > echo "some text\" with quote" > test.txt
+    > cat test.txt
+
+* Дописывание в файл:
+
+    > echo "first data" > test.txt
+    > echo "second" >> test.txt
+    > cat test.txt
+
+* Запустить интерактивную консоль python и что-то в ней сделать:
+
+    > python3
+    >>> print(1 + 2)
+    >>> 3
+
+Варианты решения:
+
+  - 15 баллов: все описанное выше.
+
+  - +5 баллов: поддержка операторов && и ||.
+
+  - +5 баллов: поддержка &.
+
+  - -5 баллов: (да, минус, не плюс) - можно использовать C++ и STL
+    контейнеры.
+
+Добавочные пункты на +5 баллов друг друга не включают. То есть
+можно не делать ни одного, можно сделать первый, или второй, или
+оба для +10. Или использовать C++ и получать -5 к сумме.
+
+Вход: команды и их аргументы, операторы перенаправления
+выводов/вводов.
+
+Выход: то же, что выводит терминал.
+
+С чего начать? Рекомендуемый план выполнения задания такой:
+
+- Ознакомиться с парсером.
+
+- реализовать выполнение команд без |, >, >>. Просто чтобы выполнялась одна
+  команда;
+
+- добавить |, >, >>. Для начала работы с пайпами можеть иметь смысл сначала
+  завести один единственный пайп. Даже можно в отдельном .c файле с
+  двумя захардкоженными командами. Например, 'echo 100' и 'grep 100'. Это нужно
+  заставить работать через пайп в отрыве от основного решения. Когда заработает,
+  то делаем 3 команды и два пайпа. Когда и это заработает, то уже будет заметен
+  шаблон, как это обобщить до N команд.
+
+Архитектура решения может быть следующей: есть процесс-терминал, который
+читает команды пользователя. На каждую команду он делает fork(). Появившийся
+потомок запускает команду используя exec* функции. Родительский процесс ждет
+завершения ребенка. Для | терминал создает pipe, которым связывает вывод одного
+потомка с вводом другого. Для > и >> терминал открывает файл и при помощи
+dup/dup2 подменяет им стандартный поток вывода потомка.

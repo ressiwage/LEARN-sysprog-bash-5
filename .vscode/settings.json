@@ -1,6 +1,7 @@
 {
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
     "files.associations": {
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "fcntl.h": "c"
     }
 }

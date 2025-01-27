@@ -97,7 +97,7 @@ Shell.
 
 * Выполнить код в python и выполнить поиск по его результату:
 
-    > echo "print('result is ', 123 + 456)" | python -i | grep result
+    > echo "print('result is ', 123 + 456); exit()" | python3 -i | grep result
 
 * Печать экранированной кавычки в файл и его вывод:
 
@@ -112,7 +112,7 @@ Shell.
 
 * Запустить интерактивную консоль python и что-то в ней сделать:
 
-    > python
+    > python3
     >>> print(1 + 2)
     >>> 3
 
